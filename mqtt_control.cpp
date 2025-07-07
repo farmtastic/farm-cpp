@@ -13,9 +13,10 @@ const std::string CLIENT_ID { "raspberrypi_client" };
 
 // 구독 및 발행할 토픽 정보
 const std::string TOPIC_SUB_CONTROL { "device/control" };
-const std::string TOPIC_PUB_PH { "sensors/ph" };
-const std::string TOPIC_PUB_WATER_LEVEL { "sensors/water_level" };
-const std::string TOPIC_PUB_LIGHT { "sensors/light" };
+const std::string TOPIC_PUB_DATA { "farm/data" }; // 발행 토픽을 하나로 통합
+// const std::string TOPIC_PUB_PH { "sensors/ph" };
+// const std::string TOPIC_PUB_WATER_LEVEL { "sensors/water_level" };
+// const std::string TOPIC_PUB_LIGHT { "sensors/light" };
 
 const int QOS = 1;
 
@@ -48,7 +49,7 @@ public:
 
     // 제어 메시지 수신 시 호출되는 함수
     void message_arrived(mqtt::const_message_ptr msg) override {
-        std::cout << "메시지 도착" << std::endl;
+        std::cout << "Message arrived" << std::endl;
         std::cout << "\ttopic: '" << msg->get_topic() << "'" << std::endl;
         std::cout << "\tpayload: '" << msg->to_string() << "'\n" << std::endl;
 
@@ -74,13 +75,13 @@ int main(int argc, char* argv[]) {
 
     try {
         // 브로커에 접속
-        std::cout << "MQTT 브로커에 연결 중..." << std::endl;
+        std::cout << "Connecting to MQTT broker..." << std::endl;
         mqtt::token_ptr conntok = client.connect(connOpts);
         conntok->wait();
-        std::cout << "연결 완료!" << std::endl;
+        std::cout << "Connected!" << std::endl;
 
         // 제어 명령 토픽 구독
-        std::cout << "토픽 구독 중... '" << TOPIC_SUB_CONTROL << "'..." << std::endl;
+        std::cout << "Subscribed to topic... '" << TOPIC_SUB_CONTROL << "'..." << std::endl;
         client.subscribe(TOPIC_SUB_CONTROL, QOS);
         std::cout << "구독 완료!" << std::endl;
 
@@ -91,17 +92,17 @@ int main(int argc, char* argv[]) {
             float water_level_value = read_water_level_sensor();
             float light_value = read_light_sensor();
 
-            // 2. 메시지 생성
-            std::string ph_payload = std::to_string(ph_value);
-            std::string water_level_payload = std::to_string(water_level_value);
-            std::string light_payload = std::to_string(light_value);
+            // 2. JSON 형식의 문자열 생성 (핵심 변경 부분)
+            std::string payload = "{"
+            "\"ph\": " + std::to_string(ph_value) + ","
+            "\"water_level\": " + std::to_string(water_level_value) + ","
+            "\"light\": " + std::to_string(light_value) +
+            "}";
 
-            // 3. 각 토픽으로 메시지 발행
-            client.publish(TOPIC_PUB_PH, ph_payload, QOS, false);
-            client.publish(TOPIC_PUB_WATER_LEVEL, water_level_payload, QOS, false);
-            client.publish(TOPIC_PUB_LIGHT, light_payload, QOS, false);
+            // 3. 통합된 토픽으로 JSON 페이로드 발행
+            client.publish(TOPIC_PUB_DATA, payload, QOS, false);
 
-            std::cout << "발행: pH=" << ph_payload << ", WaterLevel=" << water_level_payload << ", Light=" << light_payload << std::endl;
+            std::cout << "Published to topic '" << TOPIC_PUB_DATA << "': " << payload << std::endl;
 
             // 10초 대기
             std::this_thread::sleep_for(std::chrono::seconds(10));
