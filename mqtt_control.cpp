@@ -13,7 +13,7 @@ const std::string CLIENT_ID { "raspberrypi_client" };
 
 // 구독 및 발행할 토픽 정보
 const std::string TOPIC_SUB_CONTROL { "device/control" };
-const std::string TOPIC_PUB_DATA { "farm/data" }; // 발행 토픽을 하나로 통합
+const std::string TOPIC_PUB_DATA { "farm/data/zone-A" }; // 발행 토픽을 하나로 통합
 // const std::string TOPIC_PUB_PH { "sensors/ph" };
 // const std::string TOPIC_PUB_WATER_LEVEL { "sensors/water_level" };
 // const std::string TOPIC_PUB_LIGHT { "sensors/light" };
