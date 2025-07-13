@@ -42,7 +42,7 @@ float read_light_sensor() {
     }
 
     // 센서가 빛을 측정하고 값을 변환할 시간 (최대: 180ms)
-    gpioSleep(180000);
+    gpioSleep(PI_TIME_RELATIVE, 0, 180000);
 
     char data[2];
     // 측정 결과 읽기
