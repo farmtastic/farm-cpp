@@ -17,20 +17,35 @@ const std::string TOPIC_PUB_DATA { "farm/data/zone-A" }; // 발행 토픽을 하
 
 const int QOS = 1;
 
-// BH1750 I2C 센서 설정
+// BH1750 I2C 조도 센서
 const int I2C_BUS = 1; // 라즈베리파이의 I2C 버스 번호 (보통 1번)
 const int BH1750_ADDR = 0x23; // BH1750 센서의 기본 I2C 주소
 
-// I2C 통신 핸들을 저장할 전역 변수
-int i2c_handle_light;
+// 수위 센서
+const int PIN_WATER_LEVEL = 17; // 수위 센서가 연결된 GPIO 핀
 
-// 현재는 랜덤 값으로 넣어져 있음. 실제 GPIO 센서 값을 읽는 코드로 교체해야함.
+// PH에서 사용할 ADC: MCP3008 ADC (SPI) -> 가정
+const unsigned int SPI_CHANNEL = 0; // SPI 채널 0
+const unsigned int SPI_SPEED = 50000; // SPI 통신 속도
+
+int i2c_handle_light; // I2C 통신 핸들을 저장할 전역 변수
+int spi_handle_adc; // SPI 핸들
+
+// PH 센서 값 (현재는 랜덤 값으로 넣어져 있음. 실제 GPIO 센서 값을 읽는 코드로 교체해야함.)
 float read_ph_sensor() {
     return (rand() % 140) / 10.0;
 }
 
+// 수위 센서 값(1.0, 0.0) 반환, 실패 시 음수 반환
 float read_water_level_sensor() {
-    return (rand() % 1010) / 10.0;
+    int level = gpioRead(PIN_WATER_LEVEL);
+
+    if (level < 0) {
+        std::cerr << "Failed to read: Water GPIO pin: " << PIN_WATER_LEVEL << ". Error code: " << level << std::endl;
+        return -1.0f;
+    }
+
+    return static_cast<float>(level);
 }
 
 // 측정된 조도(lux) 값 반환, 실패 시 음수 반환
@@ -95,6 +110,10 @@ int main(int argc, char* argv[]) {
         gpioTerminate();
         return 1;
     }
+
+    // 수위 센서 GPIO 핀 모드 설정
+    gpioSetMode(PIN_WATER_LEVEL, PI_INPUT);
+    gpioSetPullUpDown(PIN_WATER_LEVEL, PI_PUD_UP);
 
     mqtt::async_client client(SERVER_ADDRESS, CLIENT_ID);
     callback cb;
