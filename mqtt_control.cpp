@@ -14,27 +14,49 @@ const std::string CLIENT_ID { "raspberrypi_client" };
 // 구독 및 발행할 토픽 정보
 const std::string TOPIC_SUB_CONTROL { "device/control" };
 const std::string TOPIC_PUB_DATA { "farm/data/zone-A" }; // 발행 토픽을 하나로 통합
-// const std::string TOPIC_PUB_PH { "sensors/ph" };
-// const std::string TOPIC_PUB_WATER_LEVEL { "sensors/water_level" };
-// const std::string TOPIC_PUB_LIGHT { "sensors/light" };
 
 const int QOS = 1;
 
-// 센서 값 읽기
+// BH1750 I2C 센서 설정
+const int I2C_BUS = 1; // 라즈베리파이의 I2C 버스 번호 (보통 1번)
+const int BH1750_ADDR = 0x23; // BH1750 센서의 기본 I2C 주소
+
+// I2C 통신 핸들을 저장할 전역 변수
+int i2c_handle_light;
+
 // 현재는 랜덤 값으로 넣어져 있음. 실제 GPIO 센서 값을 읽는 코드로 교체해야함.
 float read_ph_sensor() {
-
     return (rand() % 140) / 10.0;
 }
 
 float read_water_level_sensor() {
-    
     return (rand() % 1010) / 10.0;
 }
 
+// 측정된 조도(lux) 값 반환, 실패 시 음수 반환
 float read_light_sensor() {
-   
-    return rand() % 1024;
+    // 고해상도 모드로 측정 시작 명령
+    if (i2cWriteByte(i2c_handle_light, 0x10) < 0) {
+        std::cerr << "Failed to write: BH1750 sensor." << std::endl;
+        return -1.0f;
+    }
+
+    // 센서가 빛을 측정하고 값을 변환할 시간 (최대: 180ms)
+    gpioSleep(180000);
+
+    char data[2];
+    // 측정 결과 읽기
+    if (i2cReadDevice(i2c_handle_light, data, 2) == 2) {
+        // 수신된 2바이트 데이터를 하나의 16비트 정수 값으로 변환
+        int raw_value = (data[0] << 8) | data[1];
+        
+        // lux 값으로 변환
+        float lux = raw_value / 1.2f;
+        return lux;
+    } else {
+        std::cerr << "Failed to read: BH1750 sensor" << std::endl;
+        return -1.0f;
+    }
 }
 
 
@@ -42,9 +64,9 @@ float read_light_sensor() {
 class callback : public virtual mqtt::callback {
 public:
     void connection_lost(const std::string& cause) override {
-        std::cerr << "\n연결을 잃었습니다.." << std::endl;
+        std::cerr << "\nConnection lost..." << std::endl;
         if (!cause.empty())
-            std::cerr << "\t이유: " << cause << std::endl;
+            std::cerr << "\tCause: " << cause << std::endl;
     }
 
     // 제어 메시지 수신 시 호출되는 함수
@@ -60,7 +82,17 @@ public:
 int main(int argc, char* argv[]) {
     // GPIO 라이브러리 초기화
     if (gpioInitialise() < 0) {
-        std::cerr << "pigpio 초기화 실패" << std::endl;
+        std::cerr << "pigpio initialization failed." << std::endl;
+        return 1;
+    }
+
+    // I2C 핸들 초기화
+    // 프로그램 시작 시 I2C 버스 한 번만 열기.
+    i2c_handle_light = i2cOpen(I2C_BUS, BH1750_ADDR, 0);
+    if (i2c_handle_light < 0) {
+        std::cerr << "Failed to open I2C. Check if the I2C interface is enabled." << std::endl;
+        std::cerr << "($ sudo raspi-config -> Interface Options -> I2C -> Enable)" << std::endl;
+        gpioTerminate();
         return 1;
     }
 
@@ -76,30 +108,28 @@ int main(int argc, char* argv[]) {
     try {
         // 브로커에 접속
         std::cout << "Connecting to MQTT broker..." << std::endl;
-        mqtt::token_ptr conntok = client.connect(connOpts);
-        conntok->wait();
+        client.connect(connOpts)->wait();
         std::cout << "Connected!" << std::endl;
 
         // 제어 명령 토픽 구독
-        std::cout << "Subscribed to topic... '" << TOPIC_SUB_CONTROL << "'..." << std::endl;
-        client.subscribe(TOPIC_SUB_CONTROL, QOS);
-        std::cout << "구독 완료!" << std::endl;
+        std::cout << "Subscribing to topic: '" << TOPIC_SUB_CONTROL << "'..." << std::endl;
+        client.subscribe(TOPIC_SUB_CONTROL, QOS)->wait();
+        std::cout << "Subscribed successfully!" << std::endl;
 
         // 주기적으로 센서 데이터 발행
         while (true) {
-            // 1. 센서 값 읽기
             float ph_value = read_ph_sensor();
             float water_level_value = read_water_level_sensor();
-            float light_value = read_light_sensor();
+            float light_value = read_light_sensor(); 
 
-            // 2. JSON 형식의 문자열 생성 (핵심 변경 부분)
+            // JSON 형식의 문자열 생성
             std::string payload = "{"
             "\"ph\": " + std::to_string(ph_value) + ","
             "\"water_level\": " + std::to_string(water_level_value) + ","
             "\"light\": " + std::to_string(light_value) +
             "}";
 
-            // 3. 통합된 토픽으로 JSON 페이로드 발행
+            // JSON 페이로드 발행
             client.publish(TOPIC_PUB_DATA, payload, QOS, false);
 
             std::cout << "Published to topic '" << TOPIC_PUB_DATA << "': " << payload << std::endl;
@@ -110,10 +140,10 @@ int main(int argc, char* argv[]) {
     }
     catch (const mqtt::exception& exc) {
         std::cerr << "Error: " << exc.what() << std::endl;
-        gpioTerminate(); // 프로그램 종료 전 GPIO 정리
-        return 1;
     }
     
+    // 리소스 정리
+    i2cClose(i2c_handle_light);
     gpioTerminate();
     return 0;
 }
