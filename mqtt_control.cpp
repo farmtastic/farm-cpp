@@ -28,16 +28,59 @@ const int PIN_WATER_LEVEL_BOTTOM = 23; // 하단 수위 센서가 연결된 GPIO
 // 릴레이 제어 핀 설정
 const int PIN_LED_RELAY = 17; // 릴레이의 IN 핀에 연결된 GPIO 번호
 
-// PH에서 사용할 ADC: MCP3008 ADC (SPI) -> 가정
-const unsigned int SPI_CHANNEL = 0; // SPI 채널 0
-const unsigned int SPI_SPEED = 50000; // SPI 통신 속도
+// PH에서 사용할 ADC
+const unsigned int SPI_CHANNEL = 0;
+const unsigned int SPI_SPEED = 50000;
+const int ADC_CHANNEL_PH = 0; // pH 센서가 연결된 MCP3208 채널 번호
 
 int i2c_handle_light; // I2C 통신 핸들을 저장할 전역 변수
 int spi_handle_adc; // SPI 핸들
 
-// PH 센서 값 (현재는 랜덤 값으로 넣어져 있음. 실제 GPIO 센서 값을 읽는 코드로 교체해야함.)
+// MCP3208 ADC의 특정 채널에서 12비트 값을 읽는 함수
+// adc_channel 읽어올 MCP3208의 채널 번호 (0~7)
+// 실패 시 음수 반환
+int read_adc_value(int adc_channel) {
+    if (spi_handle_adc < 0 || adc_channel < 0 || adc_channel > 7) {
+        return -1;
+    }
+
+    // MCP3208에 명령을 보내기 위한 버퍼 (3바이트)
+    // 싱글 엔드 모드 명령: [Start(1), SGL/DIFF(1), D2, D1, D0]
+    char tx_buf[3] = {
+        (char)(0b00000110 | (adc_channel >> 2)), // Start, SGL, D2
+        (char)((adc_channel & 3) << 6),          // D1, D0
+        0
+    };
+    char rx_buf[3];
+
+    if (spiXfer(spi_handle_adc, tx_buf, rx_buf, 3) < 0) {
+        std::cerr << "Failed to read from SPI." << std::endl;
+        return -1;
+    }
+
+    // 수신된 데이터에서 12비트 ADC 값 추출
+    int result = ((rx_buf[1] & 0x0F) << 8) | rx_buf[2];
+    return result;
+}
+
+// PH 센서 값 반환, 실패 시 음수 반환
 float read_ph_sensor() {
-    return (rand() % 140) / 10.0;
+    int adc_value = read_adc_value(ADC_CHANNEL_PH);
+    if (adc_value < 0) {
+        return -1.0f;
+    }
+
+    // ADC 값(0~4095)을 전압(0~3.3V)으로 변환
+    float voltage = adc_value * (3.3 / 4095.0);
+
+    // 전압을 pH 값으로 변환
+    float ph_value = 7.0 - ((2.5 - voltage) / 0.18); 
+    
+    // pH 값의 범위를 0~14로 제한
+    if (ph_value < 0) ph_value = 0;
+    if (ph_value > 14) ph_value = 14;
+
+    return ph_value;
 }
 
 // 상단 수위 센서 값(1.0, 0.0) 반환, 실패 시 음수 반환
@@ -133,6 +176,15 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    // SPI 핸들 초기화
+    spi_handle_adc = spiOpen(SPI_CHANNEL, SPI_SPEED, 0);
+    if (spi_handle_adc < 0) {
+        std::cerr << "Failed to open SPI. Check if SPI is enabled." << std::endl;
+        i2cClose(i2c_handle_light);
+        gpioTerminate();
+        return 1;
+    }
+
     // 수위 센서 GPIO 핀 모드 설정
     gpioSetMode(PIN_WATER_LEVEL_TOP, PI_INPUT);
     gpioSetPullUpDown(PIN_WATER_LEVEL_TOP, PI_PUD_UP);
@@ -211,6 +263,7 @@ int main(int argc, char* argv[]) {
     
     // 리소스 정리
     i2cClose(i2c_handle_light);
+    spiClose(spi_handle_adc);
     gpioTerminate();
     return 0;
 }
