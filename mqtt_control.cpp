@@ -161,7 +161,7 @@ int main(int argc, char* argv[]) {
 
             // 1. 테스트용 임계값 설정
             const float LIGHT_THRESHOLD_LOW = 200.0f; // 이 값보다 어두우면 LED를 켬
-            const float LIGHT_THRESHOLD_HIGH = 500.0f; // 이 값보다 밝으면 LED를 끔
+            const float LIGHT_THRESHOLD_HIGH = 300.0f; // 이 값보다 밝으면 LED를 끔
 
             // 2. 조도 값에 따른 자동 제어 명령 발행
             if (light_value >= 0) { // 센서 값 읽기가 성공했을 때만 실행
