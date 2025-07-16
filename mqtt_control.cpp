@@ -24,6 +24,9 @@ const int BH1750_ADDR = 0x23; // BH1750 센서의 기본 I2C 주소
 // 수위 센서
 const int PIN_WATER_LEVEL = 17; // 수위 센서가 연결된 GPIO 핀
 
+// 릴레이 제어 핀 설정
+const int PIN_LED_RELAY = 23; // 릴레이의 IN 핀에 연결된 GPIO 번호 (예시
+
 // PH에서 사용할 ADC: MCP3008 ADC (SPI) -> 가정
 const unsigned int SPI_CHANNEL = 0; // SPI 채널 0
 const unsigned int SPI_SPEED = 50000; // SPI 통신 속도
@@ -88,7 +91,17 @@ public:
     void message_arrived(mqtt::const_message_ptr msg) override {
         std::cout << "Message arrived" << std::endl;
         std::cout << "\ttopic: '" << msg->get_topic() << "'" << std::endl;
-        std::cout << "\tpayload: '" << msg->to_string() << "'\n" << std::endl;
+        std::string payload = msg->to_string(); 
+        std::cout << "\tpayload: '" << payload << "'\n" << std::endl;
+
+        // 수신된 메시지에 따라 릴레이 제어
+        if (payload == "LED_ON") { // LED 켜기기
+            std::cout << "Turning LED ON..." << std::endl;
+            gpioWrite(PIN_LED_RELAY, 0); 
+        } else if (payload == "LED_OFF") { // LED 끄기기
+            std::cout << "Turning LED OFF..." << std::endl;
+            gpioWrite(PIN_LED_RELAY, 1);
+        }
 
         // "PUMP_ON" 메시지를 받으면 펌프용 GPIO를 HIGH로 설정하는 제어 명령에 따른 GPIO 동작 코드 추가해야함.
     }
@@ -115,6 +128,11 @@ int main(int argc, char* argv[]) {
     gpioSetMode(PIN_WATER_LEVEL, PI_INPUT);
     gpioSetPullUpDown(PIN_WATER_LEVEL, PI_PUD_UP);
 
+    // 릴레이 핀 초기화
+    gpioSetMode(PIN_LED_RELAY, PI_OUTPUT);
+    // 프로그램 시작 시 릴레이 OFF로 안전하게 초기화
+    gpioWrite(PIN_LED_RELAY, 1); 
+
     mqtt::async_client client(SERVER_ADDRESS, CLIENT_ID);
     callback cb;
     client.set_callback(cb);
@@ -140,6 +158,23 @@ int main(int argc, char* argv[]) {
             float ph_value = read_ph_sensor();
             float water_level_value = read_water_level_sensor();
             float light_value = read_light_sensor(); 
+
+            // 1. 테스트용 임계값 설정
+            const float LIGHT_THRESHOLD_LOW = 200.0f; // 이 값보다 어두우면 LED를 켬
+            const float LIGHT_THRESHOLD_HIGH = 500.0f; // 이 값보다 밝으면 LED를 끔
+
+            // 2. 조도 값에 따른 자동 제어 명령 발행
+            if (light_value >= 0) { // 센서 값 읽기가 성공했을 때만 실행
+                if (light_value < LIGHT_THRESHOLD_LOW) {
+                    // 조도가 200 미만이면 LED_ON 명령을 스스로에게 보냄
+                    std::cout << "Test Logic: Light is too low. Publishing LED_ON command." << std::endl;
+                    client.publish(TOPIC_SUB_CONTROL, "LED_ON", QOS, false);
+                } else if (light_value > LIGHT_THRESHOLD_HIGH) {
+                    // 조도가 500 초과면 LED_OFF 명령을 스스로에게 보냄
+                    std::cout << "Test Logic: Light is bright enough. Publishing LED_OFF command." << std::endl;
+                    client.publish(TOPIC_SUB_CONTROL, "LED_OFF", QOS, false);
+                }
+            }
 
             // JSON 형식의 문자열 생성
             std::string payload = "{"
