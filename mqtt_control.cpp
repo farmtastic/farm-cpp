@@ -22,10 +22,10 @@ const int I2C_BUS = 1; // 라즈베리파이의 I2C 버스 번호 (보통 1번)
 const int BH1750_ADDR = 0x23; // BH1750 센서의 기본 I2C 주소
 
 // 수위 센서
-const int PIN_WATER_LEVEL = 17; // 수위 센서가 연결된 GPIO 핀
+const int PIN_WATER_LEVEL = 23; // 수위 센서가 연결된 GPIO 핀
 
 // 릴레이 제어 핀 설정
-const int PIN_LED_RELAY = 23; // 릴레이의 IN 핀에 연결된 GPIO 번호 (예시
+const int PIN_LED_RELAY = 17; // 릴레이의 IN 핀에 연결된 GPIO 번호
 
 // PH에서 사용할 ADC: MCP3008 ADC (SPI) -> 가정
 const unsigned int SPI_CHANNEL = 0; // SPI 채널 0
