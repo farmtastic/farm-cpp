@@ -22,7 +22,8 @@ const int I2C_BUS = 1; // 라즈베리파이의 I2C 버스 번호 (보통 1번)
 const int BH1750_ADDR = 0x23; // BH1750 센서의 기본 I2C 주소
 
 // 수위 센서
-const int PIN_WATER_LEVEL = 23; // 수위 센서가 연결된 GPIO 핀
+const int PIN_WATER_LEVEL_TOP = 24;    // 상단 수위 센서가 연결된 GPIO 핀
+const int PIN_WATER_LEVEL_BOTTOM = 23; // 하단 수위 센서가 연결된 GPIO 핀
 
 // 릴레이 제어 핀 설정
 const int PIN_LED_RELAY = 17; // 릴레이의 IN 핀에 연결된 GPIO 번호
@@ -39,15 +40,25 @@ float read_ph_sensor() {
     return (rand() % 140) / 10.0;
 }
 
-// 수위 센서 값(1.0, 0.0) 반환, 실패 시 음수 반환
-float read_water_level_sensor() {
-    int level = gpioRead(PIN_WATER_LEVEL);
-
+// 상단 수위 센서 값(1.0, 0.0) 반환, 실패 시 음수 반환
+// 0.0 (물 감지), 1.0 (물 없음), -1.0f (오류)
+float read_water_level_top() {
+    int level = gpioRead(PIN_WATER_LEVEL_TOP);
     if (level < 0) {
-        std::cerr << "Failed to read: Water GPIO pin: " << PIN_WATER_LEVEL << ". Error code: " << level << std::endl;
+        std::cerr << "Failed to read: TOP Water GPIO pin: " << PIN_WATER_LEVEL_TOP << std::endl;
         return -1.0f;
     }
+    return static_cast<float>(level);
+}
 
+// 하단 수위 센서 값
+// 0.0 (물 감지), 1.0 (물 없음), -1.0f (오류)
+float read_water_level_bottom() {
+    int level = gpioRead(PIN_WATER_LEVEL_BOTTOM);
+    if (level < 0) {
+        std::cerr << "Failed to read: BOTTOM Water GPIO pin: " << PIN_WATER_LEVEL_BOTTOM << std::endl;
+        return -1.0f;
+    }
     return static_cast<float>(level);
 }
 
@@ -102,8 +113,6 @@ public:
             std::cout << "Turning LED OFF..." << std::endl;
             gpioWrite(PIN_LED_RELAY, 1);
         }
-
-        // "PUMP_ON" 메시지를 받으면 펌프용 GPIO를 HIGH로 설정하는 제어 명령에 따른 GPIO 동작 코드 추가해야함.
     }
 };
 
@@ -125,8 +134,10 @@ int main(int argc, char* argv[]) {
     }
 
     // 수위 센서 GPIO 핀 모드 설정
-    gpioSetMode(PIN_WATER_LEVEL, PI_INPUT);
-    gpioSetPullUpDown(PIN_WATER_LEVEL, PI_PUD_UP);
+    gpioSetMode(PIN_WATER_LEVEL_TOP, PI_INPUT);
+    gpioSetPullUpDown(PIN_WATER_LEVEL_TOP, PI_PUD_UP);
+    gpioSetMode(PIN_WATER_LEVEL_BOTTOM, PI_INPUT);
+    gpioSetPullUpDown(PIN_WATER_LEVEL_BOTTOM, PI_PUD_UP);
 
     // 릴레이 핀 초기화
     gpioSetMode(PIN_LED_RELAY, PI_OUTPUT);
@@ -156,7 +167,8 @@ int main(int argc, char* argv[]) {
         // 주기적으로 센서 데이터 발행
         while (true) {
             float ph_value = read_ph_sensor();
-            float water_level_value = read_water_level_sensor();
+            float top_level = read_water_level_top();
+            float bottom_level = read_water_level_bottom();
             float light_value = read_light_sensor(); 
 
             // 1. 테스트용 임계값 설정
@@ -179,7 +191,8 @@ int main(int argc, char* argv[]) {
             // JSON 형식의 문자열 생성
             std::string payload = "{"
             "\"ph\": " + std::to_string(ph_value) + ","
-            "\"water_level\": " + std::to_string(water_level_value) + ","
+            "\"water_level_top\": " + std::to_string(top_level) + ","
+            "\"water_level_bottom\": " + std::to_string(bottom_level) + ","
             "\"light\": " + std::to_string(light_value) +
             "}";
 
