@@ -12,7 +12,8 @@ const std::string SERVER_ADDRESS { "tcp://localhost:1883" };
 const std::string CLIENT_ID { "raspberrypi_client" };
 
 // 구독 및 발행할 토픽 정보
-const std::string TOPIC_SUB_CONTROL { "device/control" };
+const std::string TOPIC_SUB_CONTROL { "farm/control/zone-A/led" }; // led 명령 구독
+const std::string TOPIC_SUB_CONTROL { "farm/control/zone-A/pump" }; // 펌프 명령 구독
 const std::string TOPIC_PUB_DATA { "farm/data/zone-A" }; // 발행 토픽을 하나로 통합
 
 const int QOS = 1;
@@ -149,6 +150,7 @@ public:
         std::cout << "\tpayload: '" << payload << "'\n" << std::endl;
 
         // 수신된 메시지에 따라 릴레이 제어
+        // 추후 펌프 추가 해야함
         if (payload == "LED_ON") { // LED 켜기기
             std::cout << "Turning LED ON..." << std::endl;
             gpioWrite(PIN_LED_RELAY, 0); 
@@ -223,22 +225,22 @@ int main(int argc, char* argv[]) {
             float bottom_level = read_water_level_bottom();
             float light_value = read_light_sensor(); 
 
-            // 1. 테스트용 임계값 설정
-            const float LIGHT_THRESHOLD_LOW = 200.0f; // 이 값보다 어두우면 LED를 켬
-            const float LIGHT_THRESHOLD_HIGH = 300.0f; // 이 값보다 밝으면 LED를 끔
+            // // 1. 테스트용 임계값 설정
+            // const float LIGHT_THRESHOLD_LOW = 200.0f; // 이 값보다 어두우면 LED를 켬
+            // const float LIGHT_THRESHOLD_HIGH = 300.0f; // 이 값보다 밝으면 LED를 끔
 
-            // 2. 조도 값에 따른 자동 제어 명령 발행
-            if (light_value >= 0) { // 센서 값 읽기가 성공했을 때만 실행
-                if (light_value < LIGHT_THRESHOLD_LOW) {
-                    // 조도가 200 미만이면 LED_ON 명령을 스스로에게 보냄
-                    std::cout << "Test Logic: Light is too low. Publishing LED_ON command." << std::endl;
-                    client.publish(TOPIC_SUB_CONTROL, "LED_ON", QOS, false);
-                } else if (light_value > LIGHT_THRESHOLD_HIGH) {
-                    // 조도가 500 초과면 LED_OFF 명령을 스스로에게 보냄
-                    std::cout << "Test Logic: Light is bright enough. Publishing LED_OFF command." << std::endl;
-                    client.publish(TOPIC_SUB_CONTROL, "LED_OFF", QOS, false);
-                }
-            }
+            // // 2. 조도 값에 따른 자동 제어 명령 발행
+            // if (light_value >= 0) { // 센서 값 읽기가 성공했을 때만 실행
+            //     if (light_value < LIGHT_THRESHOLD_LOW) {
+            //         // 조도가 200 미만이면 LED_ON 명령을 스스로에게 보냄
+            //         std::cout << "Test Logic: Light is too low. Publishing LED_ON command." << std::endl;
+            //         client.publish(TOPIC_SUB_CONTROL, "LED_ON", QOS, false);
+            //     } else if (light_value > LIGHT_THRESHOLD_HIGH) {
+            //         // 조도가 500 초과면 LED_OFF 명령을 스스로에게 보냄
+            //         std::cout << "Test Logic: Light is bright enough. Publishing LED_OFF command." << std::endl;
+            //         client.publish(TOPIC_SUB_CONTROL, "LED_OFF", QOS, false);
+            //     }
+            // }
 
             // JSON 형식의 문자열 생성
             std::string payload = "{"
