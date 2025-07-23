@@ -12,8 +12,8 @@ const std::string SERVER_ADDRESS { "tcp://localhost:1883" };
 const std::string CLIENT_ID { "raspberrypi_client" };
 
 // 구독 및 발행할 토픽 정보
-const std::string TOPIC_SUB_CONTROL { "farm/control/zone-A/led" }; // led 명령 구독
-const std::string TOPIC_SUB_CONTROL { "farm/control/zone-A/pump" }; // 펌프 명령 구독
+const std::string TOPIC_SUB_CONTROL { "farm/control/zone-A/led-1" }; // led 명령 구독
+const std::string TOPIC_SUB_CONTROL { "farm/control/zone-A/water-pump-1" }; // 펌프 명령 구독
 const std::string TOPIC_PUB_DATA { "farm/data/zone-A" }; // 발행 토픽을 하나로 통합
 
 const int QOS = 1;
