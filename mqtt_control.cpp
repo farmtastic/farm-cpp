@@ -29,6 +29,9 @@ const int PIN_WATER_LEVEL_BOTTOM = 23; // 하단 수위 센서가 연결된 GPIO
 // 릴레이 제어 핀 설정
 const int PIN_LED_RELAY = 17; // 릴레이의 IN 핀에 연결된 GPIO 번호
 
+// 워터펌프 릴레이용 핀
+const int PIN_WATER_PUMP_RELAY = 27;  // 예시: GPIO27번에 연결
+
 // PH에서 사용할 ADC
 const unsigned int SPI_CHANNEL = 0;
 const unsigned int SPI_SPEED = 50000;
@@ -132,6 +135,16 @@ float read_light_sensor() {
     }
 }
 
+// 워터펌프 릴레이 ON/OFF 함수
+void pump_on() {
+    gpioWrite(PIN_WATER_PUMP_RELAY, 0); // 릴레이 ON (Active Low)
+    std::cout << "[펌프] ON" << std::endl;
+}
+
+void pump_off() {
+    gpioWrite(PIN_WATER_PUMP_RELAY, 1); // 릴레이 OFF
+    std::cout << "[펌프] OFF" << std::endl;
+}
 
 // MQTT 이벤트 처리를 위한 콜백 클래스
 class callback : public virtual mqtt::callback {
@@ -150,13 +163,18 @@ public:
         std::cout << "\tpayload: '" << payload << "'\n" << std::endl;
 
         // 수신된 메시지에 따라 릴레이 제어
-        // 추후 펌프 추가 해야함
-        if (payload == "LED_ON") { // LED 켜기기
-            std::cout << "Turning LED ON..." << std::endl;
-            gpioWrite(PIN_LED_RELAY, 0); 
-        } else if (payload == "LED_OFF") { // LED 끄기기
-            std::cout << "Turning LED OFF..." << std::endl;
-            gpioWrite(PIN_LED_RELAY, 1);
+        if (msg->get_topic() == "farm/control/zone-A/led-1") {
+            if (payload == "LED_ON") {
+                gpioWrite(PIN_LED_RELAY, 0);
+            } else if (payload == "LED_OFF") {
+                gpioWrite(PIN_LED_RELAY, 1);
+            }
+        } else if (msg->get_topic() == "farm/control/zone-A/water-pump-1") {
+            if (payload == "PUMP_ON") {
+                pump_on();
+            } else if (payload == "PUMP_OFF") {
+                pump_off();
+            }
         }
     }
 };
@@ -195,8 +213,10 @@ int main(int argc, char* argv[]) {
 
     // 릴레이 핀 초기화
     gpioSetMode(PIN_LED_RELAY, PI_OUTPUT);
-    // 프로그램 시작 시 릴레이 OFF로 안전하게 초기화
-    gpioWrite(PIN_LED_RELAY, 1); 
+    gpioWrite(PIN_LED_RELAY, 1); // 시작시 OFF
+
+    gpioSetMode(PIN_WATER_PUMP_RELAY, PI_OUTPUT);
+    gpioWrite(PIN_WATER_PUMP_RELAY, 1); // 시작시 OFF
 
     mqtt::async_client client(SERVER_ADDRESS, CLIENT_ID);
     callback cb;
