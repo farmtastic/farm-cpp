@@ -164,15 +164,15 @@ public:
 
         // 수신된 메시지에 따라 릴레이 제어
         if (msg->get_topic() == TOPIC_SUB_LED) {
-            if (payload == "LED_ON") {
+            if (payload == "LIGHT_ON") {
                 gpioWrite(PIN_LED_RELAY, 0);
-            } else if (payload == "LED_OFF") {
+            } else if (payload == "LIGHT_OFF") {
                 gpioWrite(PIN_LED_RELAY, 1);
             }
         } else if (msg->get_topic() == TOPIC_SUB_PUMP) {
-            if (payload == "WATER_PUMP_ON") {
+            if (payload == "PH_ON") {
                 pump_on();
-            } else if (payload == "WATER_PUMP_OFF") {
+            } else if (payload == "PH_OFF") {
                 pump_off();
             }
         }
