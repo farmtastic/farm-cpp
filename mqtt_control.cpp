@@ -27,10 +27,10 @@ const int PIN_WATER_LEVEL_TOP = 24;    // 상단 수위 센서가 연결된 GPIO
 const int PIN_WATER_LEVEL_BOTTOM = 23; // 하단 수위 센서가 연결된 GPIO 핀
 
 // 릴레이 제어 핀 설정
-const int PIN_LED_RELAY = 17; // 릴레이의 IN 핀에 연결된 GPIO 번호
+const int PIN_LED_RELAY = 27; // 릴레이의 IN 핀에 연결된 GPIO 번호
 
 // 워터펌프 릴레이용 핀
-const int PIN_WATER_PUMP_RELAY = 27;  // 예시: GPIO27번에 연결
+const int PIN_WATER_PUMP_RELAY = 17;  // 예시: GPIO27번에 연결
 
 // PH에서 사용할 ADC
 const unsigned int SPI_CHANNEL = 0;
