@@ -170,9 +170,9 @@ public:
                 gpioWrite(PIN_LED_RELAY, 1);
             }
         } else if (msg->get_topic() == "farm/control/zone-A/water-pump-1") {
-            if (payload == "PUMP_ON") {
+            if (payload == "WATER_PUMP_ON") {
                 pump_on();
-            } else if (payload == "PUMP_OFF") {
+            } else if (payload == "WATER_PUMP_OFF") {
                 pump_off();
             }
         }
