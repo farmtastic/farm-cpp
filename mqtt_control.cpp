@@ -234,9 +234,10 @@ int main(int argc, char* argv[]) {
         std::cout << "Connected!" << std::endl;
 
         // 제어 명령 토픽 구독
-        std::cout << "Subscribing to topic: '" << TOPIC_SUB_CONTROL << "'..." << std::endl;
-        client.subscribe(TOPIC_SUB_CONTROL, QOS)->wait();
-        std::cout << "Subscribed successfully!" << std::endl;
+        client.subscribe(TOPIC_SUB_LED, QOS)->wait();
+        std::cout << "Subscribed to topic: '" << TOPIC_SUB_LED << "'" << std::endl;
+        client.subscribe(TOPIC_SUB_PUMP, QOS)->wait();
+        std::cout << "Subscribed to topic: '" << TOPIC_SUB_PUMP << "'" << std::endl;
 
         // 주기적으로 센서 데이터 발행
         while (true) {
