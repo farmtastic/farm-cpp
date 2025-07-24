@@ -12,8 +12,8 @@ const std::string SERVER_ADDRESS { "tcp://localhost:1883" };
 const std::string CLIENT_ID { "raspberrypi_client" };
 
 // 구독 및 발행할 토픽 정보
-const std::string TOPIC_SUB_CONTROL { "farm/control/zone-A/led-1" }; // led 명령 구독
-const std::string TOPIC_SUB_CONTROL { "farm/control/zone-A/water-pump-1" }; // 펌프 명령 구독
+const std::string TOPIC_SUB_LED { "farm/control/zone-A/led-1" }; // led 명령 구독
+const std::string TOPIC_SUB_PUMP { "farm/control/zone-A/water-pump-1" }; // 펌프 명령 구독
 const std::string TOPIC_PUB_DATA { "farm/data/zone-A" }; // 발행 토픽을 하나로 통합
 
 const int QOS = 1;
@@ -163,13 +163,13 @@ public:
         std::cout << "\tpayload: '" << payload << "'\n" << std::endl;
 
         // 수신된 메시지에 따라 릴레이 제어
-        if (msg->get_topic() == "farm/control/zone-A/led-1") {
+        if (msg->get_topic() == TOPIC_SUB_LED) {
             if (payload == "LED_ON") {
                 gpioWrite(PIN_LED_RELAY, 0);
             } else if (payload == "LED_OFF") {
                 gpioWrite(PIN_LED_RELAY, 1);
             }
-        } else if (msg->get_topic() == "farm/control/zone-A/water-pump-1") {
+        } else if (msg->get_topic() == TOPIC_SUB_PUMP) {
             if (payload == "WATER_PUMP_ON") {
                 pump_on();
             } else if (payload == "WATER_PUMP_OFF") {
